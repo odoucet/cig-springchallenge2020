@@ -134,14 +134,14 @@ class Game:
 
         # on reset pas l'action en cours d'un pacman, car il  l'a peut etre pas finie
 
-        self.score = int(input())
-        self.startTime = time.time()
-        self.opponentScore = int(input())
+        self.score, self.opponentScore = [int(j) for j in input().split()]
+        self.startTime = time.time() ## after first input, to not count IA time
+
 
         visiblePacCount = int(input())
 
         for j in range(visiblePacCount):
-            unit_id, owner, x, y, typeId, speedTurnsLeft, abilityCooldown = [int(j) for j in input().split()]
+            unit_id, owner, x, y, typeId, speedTurnsLeft, abilityCooldown =  input().split()
             if (owner == ME):
                 obj = Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y)
                 self.units.append(obj)
