@@ -67,6 +67,9 @@ class Pastille (Point):
         self.value = value
         Point.__init__(self, x, y)
 
+    def __str__(self):
+        return f'O({self.x},{self.y})={self.value}'
+
 # Pacman
 class Pacman (Point):
     def __init__(self, owner: int, id: int, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int):
@@ -76,8 +79,26 @@ class Pacman (Point):
         self.speedTurnsLeft = speedTurnsLeft
         self.abilityCooldown = abilityCooldown
         self.action = ''
+        self.currentDestination = None
 
         Point.__init__(self, x, y)
+
+    def __str__(self):
+        return f'P#{self.id}({self.x},{self.y})={self.type}'
+
+
+    # reset current Pacman on new turn
+    def reset(self):
+        self.action = ''
+        return
+
+    def update(self, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int):
+        self.type = type
+        self.speedTurnsLeft = speedTurnsLeft
+        self.abilityCooldown = abilityCooldown
+        self.x = x
+        self.y = y
+        
 
 class Game:
     def __init__(self):
@@ -96,7 +117,32 @@ class Game:
     def move_units(self):
         # on commence simple : on va a la case vide/adversaire la plus proche
         for unit in self.units:
-            unit.action = f'{unit.id} 1 2'
+            # on sait deja où on va ? 
+            if unit.currentDestination is not None and distance(unit, unit.currentDestination) > 1:
+                unit.action = f'MOVE {unit.id} {unit.currentDestination.x} {unit.currentDestination.y} CURDEST'
+                continue
+
+            # on va a la plus grosse pastille la plus proche
+            debugMsg(f'moving {unit.id}')
+
+            finalDestination = None
+
+            destinations = unit.sortNearest(self.pastilles)
+
+            dest: Pastille
+            for dest in destinations:
+                if dest.value > 1:
+                    finalDestination = dest
+                    break
+            
+            if finalDestination is None:
+                for dest in destinations:
+                    finalDestination = dest
+                    break
+
+            unit.currentDestination = finalDestination
+            debugMsg(f'destination: {finalDestination}')
+            unit.action = f'MOVE {unit.id} {finalDestination.x} {finalDestination.y} NEW'
         return
 
 
@@ -107,8 +153,6 @@ class Game:
         self.width, self.height = [int(i) for i in input().split()]
         for i in range(self.height):
             row = input()  # one line of the grid: space " " is floor, pound "#" is wall
-
-        debugMsg(f'width={self.width},height={self.height}')
         return
 
 
@@ -125,37 +169,54 @@ class Game:
 
 
     def update(self):
-        #self.units.clear()
-        #self.OpponentUnits.clear()
+        for unit in self.units:
+            unit.reset()
 
         self.pastilles.clear()
 
         self.tour += 1
 
-        # on reset pas l'action en cours d'un pacman, car il  l'a peut etre pas finie
-
         self.score, self.opponentScore = [int(j) for j in input().split()]
         self.startTime = time.time() ## after first input, to not count IA time
-
 
         visiblePacCount = int(input())
 
         for j in range(visiblePacCount):
-            unit_id, owner, x, y, typeId, speedTurnsLeft, abilityCooldown =  input().split()
-            if (owner == ME):
-                obj = Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y)
-                self.units.append(obj)
+            inputs = input().split()
+            unit_id, owner, x, y = map(int, inputs[:4])
+            typeId = 0
+            speedTurnsLeft = 0
+            abilityCooldown = 0
+            found = False
+            debugMsg(f'id={unit_id}, owner={owner}, {x},{y}')
+
+            if (int(owner) == ME):
+                for unit in self.units:
+                    if unit.id == unit_id:
+                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y)
+                        found = True
+                        break
+                if found is False:
+                    self.units.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y))
             else:
-                self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y))
+                for unit in self.OpponentUnits:
+                    if unit.id == unit_id:
+                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y)
+                        found = True
+                        break
+                if found is False:
+                    self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y))
 
         visiblePelletCount = int(input())
         for j in range(visiblePelletCount):
-            value, x, y = [int(j) for j in input().split()]
+            x, y, value = map(int, input().split())
             self.pastilles.append(Pastille(value, x, y))
 
+        debugMsg(f'Pacs: {visiblePacCount}=={len(self.units)}, opponent: {len(self.OpponentUnits)}, pastilles: visiblePelletCount=={len(self.pastilles)}')
 
         # MAJ du temps:
         debugTiming['update'] = time.time() - self.startTime 
+
 
 
     def timingFunc(self, funcName):
@@ -173,12 +234,13 @@ class Game:
         # on affiche chaque action de pacman
         output = False
         for unit in self.units:
+            debugMsg(unit)
             if unit.action != "":
                 output = True
                 print(unit.action)
 
         if output == False:
-            print('MOVE 0 0 0') # anti crash
+            print('MOVE 0 0 0 ANTICRASH') # anti crash
         
         # Temps mis dans chaque fonction: 
         totalTime = self.getTotalTime()
@@ -199,7 +261,7 @@ class Game:
 
 
 def distance(a, b):
-    return 0
+    return abs(a.x - b.x) + abs(a.y - b.y)
 
 
 def debugMap(macarte, loops = 0):

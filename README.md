@@ -35,6 +35,13 @@ Useful addons
  * CGSync
  * CG Spunk : https://chrome.google.com/webstore/detail/cg-spunk/bkmddelokmckldmgeeiheohknodgaphi
 
+
+Setup local
+----------
+```
+git clone https://github.com/CodinGame/SpringChallenge2020.git
+```
+
 ToDo
 ----
 Use local engine to test code without submitting it online :)

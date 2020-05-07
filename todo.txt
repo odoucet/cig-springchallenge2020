@@ -1,0 +1,12 @@
+A FAIRE
+=======
+
+- refaire la fonction distance(), qui ne prend pas en compte le fait qu'on puisse passer d'un bord à l'autre.
+pour ça, il faut : 
+   * un algo qui calcule une carte de distance depuis un point précis
+   * pouvoir stocker cette carte dans un cache. On aura donc une carte par point de la carte
+   * modifier la fonction comme ceci : 
+      ```
+      si j'ai déjà la carte X,Y en cache, alors retourner la distance demandée
+      sinon calculer la carte, la stocker et retourner la distance
+      ```
