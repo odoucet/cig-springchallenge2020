@@ -6,103 +6,27 @@ import math
 from itertools import chain
 import re
 
-# MAP SIZE
-WIDTH = 12
-HEIGHT = 12
-
-# OWNER
-ME = 1
-OPPONENT = 0
-
-
-# TILE TYPE
-WALL = "#"
-FLOOR = " "
-
-# Compilations re
-# TRAIN_PATTERN = re.compile("^TRAIN ([0-9]*) ([0-9]*) ([0-9]*)$")
-
-# On met notre distanceMap en global pour simplifier le code ... et désolé c'est dégueu :(
-# distanceMap = [ [ None for y in range( HEIGHT ) ] for x in range( WIDTH ) ]
+## <DONTCOPY> ##
+from Pastille import Pastille
+from Point import Point
+from Pacman import Pacman
+from Pathfinding import Pathfinding
+from Debug import Debug
+## </DONTCOPY> ##
 
 # debugTiming
 debugTiming = dict()
 
-class Point:
-    def __init__(self, x: int, y: int):
-        self.x = x
-        self.y = y
+class Game: 
 
-    def __str__(self):
-        return f'({self.x},{self.y})'
+    # owner
+    ME = 1
+    OPPONENT = 0
 
-    def __eq__(self, other):
-        return (self.x == other.x and self.y == other.y)
+    # Tile
+    WALL = "#"
+    FLOOR = " "
 
-    def __hash__(self):
-        return hash(('x', self.x,
-                 'y', self.y))
-
-    # Retourne le point dans srcArray le plus proche de point
-    # srcArray: Point[]
-    def nearest(self, srcArray):
-        nearest = None
-        nearestDist = None
-
-        for entity in srcArray:
-            # on stocke l'appel a distance() car c'est une fction couteuse en CPU
-            tmpDist = distance(entity, self)
-            if nearest is None or tmpDist < nearestDist:
-                nearest = entity
-                nearestDist = tmpDist
-        return nearest
-
-    # Tri un tableau par distance, du plus proche au plus loin
-    def sortNearest(self, srcArray):
-        return sorted(srcArray, key = lambda src: distance(src, self))
-
-# Pastilles
-class Pastille (Point): 
-    def __init__(self, points: int, x: int, y: int):
-        self.points = points
-        Point.__init__(self, x, y)
-
-    def __str__(self):
-        return f'O({self.x},{self.y})={self.points}'
-
-    def __eq__(self, other):
-        return (self.x == other.x and self.y == other.y and self.points == other.points)
-
-# Pacman
-class Pacman (Point):
-    def __init__(self, owner: int, id: int, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int, tour: int):
-        self.owner = owner
-        self.id = id
-        self.type = type
-        self.speedTurnsLeft = speedTurnsLeft
-        self.abilityCooldown = abilityCooldown
-        self.action = ''
-        self.currentDestination = None
-
-        # Type: int
-        self.lastRoundSeen = tour 
-
-        Point.__init__(self, x, y)
-
-    def __str__(self):
-        return f'P#{self.id}({self.x},{self.y})={self.type}'
-
-
-    def update(self, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int, tour: int):
-        self.type = type
-        self.speedTurnsLeft = speedTurnsLeft
-        self.abilityCooldown = abilityCooldown
-        self.x = x
-        self.y = y
-        self.lastRoundSeen = tour
-        
-
-class Game:
     def __init__(self):
         self.units = []
         self.OpponentUnits = []
@@ -121,7 +45,7 @@ class Game:
         for unit in self.units:
             # on sait deja où on va ? 
             if unit.currentDestination is not None:
-                if distance(unit, unit.currentDestination) >= 1:
+                if Pathfinding.distance(unit, unit.currentDestination) >= 1:
                     unit.action = f'MOVE {unit.id} {unit.currentDestination.x} {unit.currentDestination.y} CURDEST'
                     # pour eviter qu'un autre pacman aille aussi dessus, on vire la pastille: 
                     for pastille in self.pastilles:
@@ -193,19 +117,19 @@ class Game:
                 # combien de points ? 
                 if unit.currentDestination.points > 1:
                     # oui, ça vaut le coup de regarder si qqu'un est mieux placé
-                    dist = distance(unit, unit.currentDestination)
+                    dist = Pathfinding.distance(unit, unit.currentDestination)
                     # Type: (Pacman)
                     for pote in unit.currentDestination.sortNearest(self.units):
                         # si il est plus loin, on s'en fout
-                        if distance(pote,unit.currentDestination) >= dist:
+                        if Pathfinding.distance(pote,unit.currentDestination) >= dist:
                             break # on est en sortNearest, pas la peine de tester les autres
                         if pote.currentDestination is None:
-                            debugMsg(f'Switch destination between {unit} and {pote} (noDest)=> {unit.currentDestination}')
+                            Debug.msg(f'Switch destination between {unit} and {pote} (noDest)=> {unit.currentDestination}')
                             pote.currentDestination = unit.currentDestination
                             unit.currentDestination = None
                             break
                         if pote.currentDestination.points < unit.currentDestination.points:
-                            debugMsg(f'Switch destination between {unit} and {pote} => {unit.currentDestination}')
+                            Debug.msg(f'Switch destination between {unit} and {pote} => {unit.currentDestination}')
                             pote.currentDestination = unit.currentDestination
                             unit.currentDestination = None
                             break
@@ -230,7 +154,7 @@ class Game:
             abilityCooldown = 0
             found = False
 
-            if (int(owner) == ME):
+            if (int(owner) == self.ME):
                 for unit in self.units:
                     if unit.id == unit_id:
                         unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour)
@@ -303,25 +227,3 @@ class Game:
     # get total time in ms
     def getTotalTime(self)-> int:
         return round((time.time() - self.startTime)*1000)
-
-
-def distance(a, b):
-    return abs(a.x - b.x) + abs(a.y - b.y)
-
-
-def debugMap(macarte, loops = 0):
-    sys.stderr.write("*** DEBUG CARTE (loops: "+str(loops)+")***\n")
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
-            if macarte[x][y] is None:
-                sys.stderr.write(" **")
-            else:
-                sys.stderr.write(f" {str(macarte[x][y]):2s}")
-        sys.stderr.write("\n")
-    sys.stderr.write("\n")
-
-def debugPythonMap(macarte):
-    sys.stderr.write(str(macarte)+"\n")
-
-def debugMsg(msg):
-    sys.stderr.write(str(msg)+"\n")
