@@ -63,16 +63,19 @@ class Point:
 
 # Pastilles
 class Pastille (Point): 
-    def __init__(self, value: int, x: int, y: int):
-        self.value = value
+    def __init__(self, points: int, x: int, y: int):
+        self.points = points
         Point.__init__(self, x, y)
 
     def __str__(self):
-        return f'O({self.x},{self.y})={self.value}'
+        return f'O({self.x},{self.y})={self.points}'
+
+    def __eq__(self, other):
+        return (self.x == other.x and self.y == other.y and self.points == other.points)
 
 # Pacman
 class Pacman (Point):
-    def __init__(self, owner: int, id: int, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int):
+    def __init__(self, owner: int, id: int, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int, tour: int):
         self.owner = owner
         self.id = id
         self.type = type
@@ -81,23 +84,22 @@ class Pacman (Point):
         self.action = ''
         self.currentDestination = None
 
+        # Type: int
+        self.lastRoundSeen = tour 
+
         Point.__init__(self, x, y)
 
     def __str__(self):
         return f'P#{self.id}({self.x},{self.y})={self.type}'
 
 
-    # reset current Pacman on new turn
-    def reset(self):
-        self.action = ''
-        return
-
-    def update(self, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int):
+    def update(self, type: int, speedTurnsLeft: int, abilityCooldown: int, x: int, y: int, tour: int):
         self.type = type
         self.speedTurnsLeft = speedTurnsLeft
         self.abilityCooldown = abilityCooldown
         self.x = x
         self.y = y
+        self.lastRoundSeen = tour
         
 
 class Game:
@@ -118,20 +120,25 @@ class Game:
         # on commence simple : on va a la case vide/adversaire la plus proche
         for unit in self.units:
             # on sait deja où on va ? 
-            if unit.currentDestination is not None and distance(unit, unit.currentDestination) > 1:
-                unit.action = f'MOVE {unit.id} {unit.currentDestination.x} {unit.currentDestination.y} CURDEST'
-                continue
-
-            # on va a la plus grosse pastille la plus proche
-            debugMsg(f'moving {unit.id}')
+            if unit.currentDestination is not None:
+                if distance(unit, unit.currentDestination) >= 1:
+                    unit.action = f'MOVE {unit.id} {unit.currentDestination.x} {unit.currentDestination.y} CURDEST'
+                    # pour eviter qu'un autre pacman aille aussi dessus, on vire la pastille: 
+                    for pastille in self.pastilles:
+                        if pastille == unit.currentDestination:
+                            self.pastilles.remove(pastille)
+                            break
+                    continue
+                else:
+                    unit.currentDestination = None
 
             finalDestination = None
-
             destinations = unit.sortNearest(self.pastilles)
 
             dest: Pastille
             for dest in destinations:
-                if dest.value > 1:
+                # on va a la plus grosse pastille la plus proche
+                if dest.points > 1:
                     finalDestination = dest
                     break
             
@@ -140,9 +147,15 @@ class Game:
                     finalDestination = dest
                     break
 
-            unit.currentDestination = finalDestination
-            debugMsg(f'destination: {finalDestination}')
-            unit.action = f'MOVE {unit.id} {finalDestination.x} {finalDestination.y} NEW'
+            if finalDestination is not None:
+                unit.currentDestination = finalDestination
+
+                unit.action = f'MOVE {unit.id} {finalDestination.x} {finalDestination.y} NEW'
+                # pour eviter qu'un autre pacman aille aussi dessus, on vire la pastille: 
+                for pastille in self.pastilles:
+                    if pastille == unit.currentDestination:
+                        self.pastilles.remove(pastille)
+                        break
         return
 
 
@@ -168,9 +181,37 @@ class Game:
         return False
 
 
-    def update(self):
+    # on verifie la cible: si un ami est plus proche, on lui file si elle est mieux
+    def optimizeActionOnNewTurn(self):
+        # Type: Pacman
         for unit in self.units:
-            unit.reset()
+            self.action = ''
+            # on verifie la cible: si un ami est plus proche, on lui file si elle est mieux
+
+            # proteger si currentDestination n'est pas une pastille
+            if unit.currentDestination is not None:
+                # combien de points ? 
+                if unit.currentDestination.points > 1:
+                    # oui, ça vaut le coup de regarder si qqu'un est mieux placé
+                    dist = distance(unit, unit.currentDestination)
+                    # Type: (Pacman)
+                    for pote in unit.currentDestination.sortNearest(self.units):
+                        # si il est plus loin, on s'en fout
+                        if distance(pote,unit.currentDestination) >= dist:
+                            break # on est en sortNearest, pas la peine de tester les autres
+                        if pote.currentDestination is None:
+                            debugMsg(f'Switch destination between {unit} and {pote} (noDest)=> {unit.currentDestination}')
+                            pote.currentDestination = unit.currentDestination
+                            unit.currentDestination = None
+                            break
+                        if pote.currentDestination.points < unit.currentDestination.points:
+                            debugMsg(f'Switch destination between {unit} and {pote} => {unit.currentDestination}')
+                            pote.currentDestination = unit.currentDestination
+                            unit.currentDestination = None
+                            break
+
+    def update(self):
+        self.optimizeActionOnNewTurn()  
 
         self.pastilles.clear()
 
@@ -188,31 +229,33 @@ class Game:
             speedTurnsLeft = 0
             abilityCooldown = 0
             found = False
-            debugMsg(f'id={unit_id}, owner={owner}, {x},{y}')
 
             if (int(owner) == ME):
                 for unit in self.units:
                     if unit.id == unit_id:
-                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y)
+                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour)
                         found = True
                         break
                 if found is False:
-                    self.units.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y))
+                    self.units.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour))
             else:
                 for unit in self.OpponentUnits:
                     if unit.id == unit_id:
-                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y)
+                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour)
                         found = True
                         break
                 if found is False:
-                    self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y))
+                    self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour))
 
         visiblePelletCount = int(input())
         for j in range(visiblePelletCount):
             x, y, value = map(int, input().split())
             self.pastilles.append(Pastille(value, x, y))
 
-        debugMsg(f'Pacs: {visiblePacCount}=={len(self.units)}, opponent: {len(self.OpponentUnits)}, pastilles: visiblePelletCount=={len(self.pastilles)}')
+        # Remove our units not given - means they are dead :(
+        for unit in self.units:
+            if unit.lastRoundSeen != self.tour:
+                self.units.remove(unit)
 
         # MAJ du temps:
         debugTiming['update'] = time.time() - self.startTime 
@@ -234,14 +277,16 @@ class Game:
         # on affiche chaque action de pacman
         output = False
         for unit in self.units:
-            debugMsg(unit)
             if unit.action != "":
                 output = True
-                print(unit.action)
+                print(unit.action, end="|")
 
         if output == False:
             print('MOVE 0 0 0 ANTICRASH') # anti crash
-        
+        else:
+            # final \n
+            print('')
+
         # Temps mis dans chaque fonction: 
         totalTime = self.getTotalTime()
 

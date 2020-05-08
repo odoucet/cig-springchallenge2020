@@ -10,3 +10,12 @@ pour ça, il faut :
       si j'ai déjà la carte X,Y en cache, alors retourner la distance demandée
       sinon calculer la carte, la stocker et retourner la distance
       ```
+
+- optimiser l'avenir :) plusieurs possibilités : 
+  * calculer les 
+
+
+- détecter les collisions avec un pacman (ami ou ennemi), et résoudre le conflit :)
+
+- AVANCE : detecter si on peut bloquer >1 pacman adverse en se mettant sur une certaine case
+  (attendre avant de coder, car y'a du fog of war apres je crois)
