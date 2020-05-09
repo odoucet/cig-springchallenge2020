@@ -5,6 +5,8 @@ import random
 import math
 from itertools import chain
 import re
+import numpy as np
+#import pandas as pd
 
 ## <DONTCOPY> ##
 from Pastille import Pastille
@@ -34,6 +36,7 @@ class Game:
         self.score = 0
         self.opponentScore = 0
         self.tour = 0
+        self.barycentre = {"x":0, "y":0}
 
         # init carte du jeu
         #self.map = [ [ None for y in range( HEIGHT ) ] for x in range( WIDTH ) ]
@@ -172,14 +175,26 @@ class Game:
                     self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour))
 
         visiblePelletCount = int(input())
+        x_array = np.zeros(visiblePelletCount)
+        y_array = np.zeros(visiblePelletCount)
+        value_array = np.zeros(visiblePelletCount)
         for j in range(visiblePelletCount):
             x, y, value = map(int, input().split())
             self.pastilles.append(Pastille(value, x, y))
+            x_array[j] = x
+            y_array[j] = y
+            value_array[j] = value
 
         # Remove our units not given - means they are dead :(
         for unit in self.units:
             if unit.lastRoundSeen != self.tour:
                 self.units.remove(unit)
+
+        # Calcul barycentre : pondéré par le poids des pastilles
+        self.barycentre = {
+            "x": np.average(x_array, weights=value_array),
+            "y": np.average(y_array, weights=value_array)
+        }
 
         # MAJ du temps:
         debugTiming['update'] = time.time() - self.startTime 
