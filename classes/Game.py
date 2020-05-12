@@ -5,15 +5,15 @@ import random
 import math
 from itertools import chain
 import re
-import numpy as np
+import numpy
 #import pandas as pd
 
 ## <DONTCOPY> ##
-from Pastille import Pastille
-from Point import Point
-from Pacman import Pacman
-from Pathfinding import Pathfinding
-from Debug import Debug
+from classes.Pastille import Pastille
+from classes.Point import Point
+from classes.Pacman import Pacman
+from classes.Pathfinding import Pathfinding
+from classes.Debug import Debug
 ## </DONTCOPY> ##
 
 # debugTiming
@@ -25,9 +25,19 @@ class Game:
     ME = 1
     OPPONENT = 0
 
-    # Tile
-    WALL = "#"
-    FLOOR = " "
+    # Tile - easier to store bool instead of char
+    WALL = False  # "#"
+    FLOOR = True  # " "
+
+    # Current map, bool
+    map: numpy.array
+
+    WIDTH: int
+    HEIGHT: int
+
+    tour = 0
+    startTime = 0
+
 
     def __init__(self):
         self.units = []
@@ -35,11 +45,8 @@ class Game:
         self.pastilles = []
         self.score = 0
         self.opponentScore = 0
-        self.tour = 0
+        Game.tour = 0
         self.barycentre = {"x":0, "y":0}
-
-        # init carte du jeu
-        #self.map = [ [ None for y in range( HEIGHT ) ] for x in range( WIDTH ) ]
 
 
     # Strategie de deplacement des unites
@@ -90,20 +97,40 @@ class Game:
     def init(self):
         # width: size of the grid
         # height: top left corner is (x=0, y=0)
-        self.width, self.height = [int(i) for i in input().split()]
-        for i in range(self.height):
+        Game.WIDTH, Game.HEIGHT = [int(i) for i in input().split()]
+        Game.startTime = time.time()
+
+        self.map = numpy.zeros( (Game.WIDTH, Game.HEIGHT), dtype=numpy.bool )
+
+        for i in range(Game.HEIGHT):
             row = input()  # one line of the grid: space " " is floor, pound "#" is wall
+            j = 0
+            for superchar in list(row):
+                if superchar == "#":
+                    self.map[j][i] = self.WALL
+                else:
+                    self.map[j][i] = self.FLOOR
+                j += 1
+
+        # Calculate distanceMap complete
+        tmp = time.time()
+        Pathfinding.calculateDistanceMap(self.map, [False])
+        debugTiming['calculateDistanceMap'] = time.time() - tmp
+
         return
 
 
+    # Return true if timeout near and we should stop what we are doing
+    @staticmethod
+    def check_timeout()-> bool:
+        #debug
+        return False
 
-    # Return false if timeout near and we should stop what we are doing
-    def check_timeout(self)-> bool:
-        if self.tour <= 1:
-            timeout = 1
+        if Game.tour <= 1:
+            timeout = 0.995
         else:
             timeout = 0.045
-        if (time.time() - self.startTime) > timeout:
+        if (time.time() - Game.startTime) > timeout:
             return True
         return False
 
@@ -138,14 +165,15 @@ class Game:
                             break
 
     def update(self):
-        self.optimizeActionOnNewTurn()  
-
-        self.pastilles.clear()
-
-        self.tour += 1
-
+        Game.tour += 1
         self.score, self.opponentScore = [int(j) for j in input().split()]
-        self.startTime = time.time() ## after first input, to not count IA time
+
+        # else already started
+        if Game.tour > 1:
+            Game.startTime = time.time() ## after first input, to not count IA time
+
+        self.optimizeActionOnNewTurn()  
+        self.pastilles.clear()
 
         visiblePacCount = int(input())
 
@@ -160,24 +188,24 @@ class Game:
             if (int(owner) == self.ME):
                 for unit in self.units:
                     if unit.id == unit_id:
-                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour)
+                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, Game.tour)
                         found = True
                         break
                 if found is False:
-                    self.units.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour))
+                    self.units.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, Game.tour))
             else:
                 for unit in self.OpponentUnits:
                     if unit.id == unit_id:
-                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour)
+                        unit.update(typeId, speedTurnsLeft, abilityCooldown, x, y, Game.tour)
                         found = True
                         break
                 if found is False:
-                    self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, self.tour))
+                    self.OpponentUnits.append(Pacman(owner, unit_id, typeId, speedTurnsLeft, abilityCooldown, x, y, Game.tour))
 
         visiblePelletCount = int(input())
-        x_array = np.zeros(visiblePelletCount)
-        y_array = np.zeros(visiblePelletCount)
-        value_array = np.zeros(visiblePelletCount)
+        x_array = numpy.zeros(visiblePelletCount)
+        y_array = numpy.zeros(visiblePelletCount)
+        value_array = numpy.zeros(visiblePelletCount)
         for j in range(visiblePelletCount):
             x, y, value = map(int, input().split())
             self.pastilles.append(Pastille(value, x, y))
@@ -187,17 +215,17 @@ class Game:
 
         # Remove our units not given - means they are dead :(
         for unit in self.units:
-            if unit.lastRoundSeen != self.tour:
+            if unit.lastRoundSeen != Game.tour:
                 self.units.remove(unit)
 
         # Calcul barycentre : pondéré par le poids des pastilles
         self.barycentre = {
-            "x": np.average(x_array, weights=value_array),
-            "y": np.average(y_array, weights=value_array)
+            "x": numpy.average(x_array, weights=value_array),
+            "y": numpy.average(y_array, weights=value_array)
         }
 
         # MAJ du temps:
-        debugTiming['update'] = time.time() - self.startTime 
+        debugTiming['update'] = time.time() - Game.startTime 
 
 
 
@@ -227,9 +255,9 @@ class Game:
             print('')
 
         # Temps mis dans chaque fonction: 
-        totalTime = self.getTotalTime()
+        totalTime = Game.getTotalTime()
 
-        sys.stderr.write("TOUR #"+str(self.tour)+": "+str(totalTime)+"ms - ")
+        sys.stderr.write("TOUR #"+str(Game.tour)+": "+str(totalTime)+"ms - ")
         if totalTime == 0:
             return
 
@@ -240,5 +268,6 @@ class Game:
         #debugPythonMap(self.map)
 
     # get total time in ms
-    def getTotalTime(self)-> int:
-        return round((time.time() - self.startTime)*1000)
+    @staticmethod
+    def getTotalTime()-> int:
+        return round((time.time() - Game.startTime)*1000)

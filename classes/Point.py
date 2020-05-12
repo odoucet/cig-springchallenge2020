@@ -1,6 +1,9 @@
-
+from typing import List
+import numpy
+import math
 ## <DONTCOPY> ##
-from Pathfinding import Pathfinding
+from classes.Pathfinding import Pathfinding
+from classes.Game import Game
 ## </DONTCOPY> ##
 
 class Point:
@@ -18,11 +21,40 @@ class Point:
         return hash(('x', self.x,
                  'y', self.y))
 
+    def __add__(self, other):
+        return Point(self.x+other.x, self.y+other.y)
+
+    # Retourne les cases adjacentes, avec un filtre 
+    def getAdjacentes(self, map: numpy.array, filtre = None) -> List:
+        cases = []
+
+        #                 droite              bas                 haut                 gauche               
+        combinaisons = [  [self.x+1, self.y], [self.x, self.y+1] ]
+        combinaisons.extend(([self.x, self.y-1],  [self.x-1, self.y]))
+
+        for x,y in combinaisons:
+            # comm inter grille
+            if x < 0:
+                # rewrite x
+                x = Game.WIDTH + x
+            elif x >= Game.WIDTH:
+                x = x - Game.WIDTH
+
+            if x >= 0 and x < Game.WIDTH and y >= 0 and y < Game.HEIGHT:
+                if filtre is None or map[x][y] in filtre:
+                    cases.append(Point(x, y))
+        return cases
+         
+
     # Retourne le point dans srcArray le plus proche de point
     # srcArray: Point[]
     def nearest(self, srcArray):
         nearest = None
         nearestDist = None
+
+        ## <DONTCOPY> ##
+        from classes.Pathfinding import Pathfinding
+        ## </DONTCOPY> ##
 
         for entity in srcArray:
             # on stocke l'appel a distance() car c'est une fction couteuse en CPU

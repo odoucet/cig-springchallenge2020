@@ -1,6 +1,13 @@
 A FAIRE
 =======
 
+- depuis wood, seules les super pastilles sont visibles.
+  Mais au lieu de boucler sur chaque unite pour y aller, on devrait plutot boucler sur les super pastilles et voir si elles sont atteignables rapidement :)
+
+- on peut déterminer la position de l'IA ennemi en prenant nos unites + miroir sur le premier tour : permet de déterminer si certaines superpastilles sont perdues
+
+- Stocker la carte des pastilles, en partant du principe qu'il y en a une par case. On met à jour à chaque tour en fonction de ce qu'on voit. 
+
 - refaire la fonction distance(), qui ne prend pas en compte le fait qu'on puisse passer d'un bord à l'autre.
 pour ça, il faut : 
    * un algo qui calcule une carte de distance depuis un point précis
@@ -16,6 +23,9 @@ pour ça, il faut :
 
 
 - détecter les collisions avec un pacman (ami ou ennemi), et résoudre le conflit :)
+  Si on a deux nextTurnPos identiques : 
+     si immobile aller ailleurs
+     si en mouvement, l'autre doit être immobile
 
 - AVANCE : detecter si on peut bloquer >1 pacman adverse en se mettant sur une certaine case
-  (attendre avant de coder, car y'a du fog of war apres je crois)
+  (attendre avant de coder, car y'a du fog of war apres je crois)*

@@ -1,5 +1,5 @@
 ## <DONTCOPY> ##
-from Point import Point
+from classes.Point import Point
 ## </DONTCOPY> ##
 
 class Pastille (Point): 

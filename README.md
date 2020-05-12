@@ -15,7 +15,7 @@ As stated in Codingame FAQ (https://www.codingame.com/faq), we will run under *P
 
 Build
 -----
-Launch __buildcode.py to generate codefinal.py
+Launch __buildcode.py to generate codefinal.py =>  will aggregate all python files correctly to make it work with CIG :)
 Use CGSync to upload codefinal.py to IDE
 
 Unit tests

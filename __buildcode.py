@@ -8,10 +8,14 @@ with open('codefinal.py', 'w') as outfile:
 
         fp = open('classes/'+fname+'.py')
         buf = fp.read()
-        buf = re.sub("## <DONTCOPY> ##(.*)## </DONTCOPY> ##", "", buf, flags=re.S)
-        outfile.write(buf)
+        buf = re.sub("## <DONTCOPY> ##(.*?)## </DONTCOPY> ##", "", buf, flags=re.S)
+        outfile.write("\n\n# Class "+fname+"\n"+buf)
         fp.close()
 
+    # Tests
+    from shutil import copyfile
+    copyfile('codefinal.py', 'codetests.py')
+
     fp = open('__gamelauncher.py')
-    outfile.write(fp.read())
+    outfile.write("\n\n# LAUNCHER\n"+fp.read())
     fp.close()
