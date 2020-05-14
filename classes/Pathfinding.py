@@ -1,5 +1,6 @@
 import math
 import numpy
+import sys
 
 class Pathfinding:
 
@@ -7,30 +8,37 @@ class Pathfinding:
 
     ## <DONTCOPY> ##
     from classes.Point import Point
+    from classes.Debug import Debug
     ## </DONTCOPY> ##
 
     @staticmethod
     def distance(a: Point, b: Point) -> int:
-        if Pathfinding.distanceMap[a.x][a.y] is None:
-            #sys.stderr.write(f"distanceAB test {Pathfinding.distanceMap[b.x][b.y]}")
-            #if Pathfinding.distanceMap[b.x][b.y][a.x][a.y] is not numpy.nan:
-            #    return Pathfinding.distanceMap[b.x][b.y][a.x][a.y]
-            
-            # TODO: voir si on peut calculer la distanceMap
+        # verification d'erreur de la mort qui tue: 
+        if bool(Pathfinding.distanceMap) is False:
+            Debug.msg(f"WARN: distanceMap not init")
             return abs(a.x - b.x) + abs(a.y - b.y)
-        return Pathfinding.distanceMap[a.x][a.y][b.x][b.y]
+
+        if Pathfinding.distanceMap[a.x][a.y] is None or numpy.isnan(Pathfinding.distanceMap[a.x][a.y][b.x][b.y]):
+            # on inverse
+            if Pathfinding.distanceMap[b.x][b.y] is None:
+                # carte pas calculee
+                return abs(a.x - b.x) + abs(a.y - b.y)
+            elif numpy.isnan(Pathfinding.distanceMap[b.x][b.y][a.x][a.y]):
+                # trop loin
+                return 30
+            else:
+                return Pathfinding.distanceMap[b.x][b.y][a.x][a.y]
+        else:
+            return Pathfinding.distanceMap[a.x][a.y][b.x][b.y]
 
     # construit une carte des distances basé sur macarte, par rapport à position.
     # on la veut générique, donc si position n'est pas un angle faut que ça marche quand même.
     # argument facultatif: maxDist pour calculer qu'un bout de la carte
     @staticmethod
-    def buildDistanceMap(macarte: numpy.array, position: Point, murs) -> numpy.array:
+    def buildDistanceMap(macarte: numpy.array, position: Point, murs, maxDist = 30) -> numpy.array:
         # cannot store NoneType with Python
         tmpcarte = numpy.empty( (len(macarte), len(macarte[0]))) # , dtype=numpy.int8 
         tmpcarte.fill(numpy.nan)
-        maxDist = 99
-
-        #sys.stderr.write(f"Start {position} = 0")
         
         # en itératif on incremente en partant du QG
         aTraiter = [ [position, 0] ]
@@ -49,13 +57,9 @@ class Pathfinding:
             if (distance >= maxDist):
                 continue
             
-            cases = element.getAdjacentes(macarte)
+            cases = element.getAdjacentes(macarte, None, murs)
             #print(f"Les cases adjacentes de {element} sont :")
-            for case in cases:
-                # si c'est un mur on passe: 
-                if macarte[case.x][case.y] in murs:
-                    continue
-                
+            for case in cases:                
                 if numpy.isnan(tmpcarte[case.x][case.y]) or tmpcarte[case.x][case.y] > distance and [ case, distance + 1] not in aTraiter:
                     aTraiter.append([ case, distance + 1])
         return tmpcarte
@@ -74,28 +78,29 @@ class Pathfinding:
         Pathfinding.distanceMap = {}
         
         nbCalcMap = 0
-        myx: int
-        myy: int
+
+        totalCalcExpected = 0
+
+        casesOk = []
 
         for x in range(len(macarte)):
             Pathfinding.distanceMap[x] = {}
             for y in range(len(macarte[0])):
-                 Pathfinding.distanceMap[x][y] = {}
-
-        for myx in range(len(macarte)):
-            for myy in range(len(macarte[0])):
-                if macarte[myx][myy] in murs:
-                    Pathfinding.distanceMap[myx][myy] = None
+                if macarte[x][y] not in murs:
+                    Pathfinding.distanceMap[x][y] = None
+                    casesOk.append((x,y))
+                    totalCalcExpected += 1
                 else:
-                    if not Game.check_timeout():
-                        #tmp = time.time()
-                        tmp = Pathfinding.buildDistanceMap(macarte, Point(myx, myy), [False])
-                        assert tmp[myx][myy] == 0
+                    Pathfinding.distanceMap[x][y] = None
 
-                        Pathfinding.distanceMap[myx][myy] = tmp
-                        nbCalcMap += 1
-                        #Debug.msg(f"checkDistanceMap({x},{y}): {round((time.time() - tmp)*100000)} us")
-                    else:
-                        Debug.msg(f"checkDistanceMap stopped at {myx},{myy} with  {time.time() - Game.startTime}")
-                        return nbCalcMap
+        for x,y in casesOk: 
+            if not Game.check_timeout():
+                tmp = Pathfinding.buildDistanceMap(macarte, Point(x, y), [False], 15)
+                assert tmp[x][y] == 0
+
+                Pathfinding.distanceMap[x][y] = tmp
+                nbCalcMap += 1
+            else:
+                Debug.msg(f"checkDistanceMap stopped at {x},{y} ({round(nbCalcMap*100/totalCalcExpected)} %) with  {time.time() - Game.startTime}")
+                return nbCalcMap
         return nbCalcMap

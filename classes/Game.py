@@ -46,7 +46,6 @@ class Game:
         self.score = 0
         self.opponentScore = 0
         Game.tour = 0
-        self.barycentre = {"x":0, "y":0}
 
 
     # Strategie de deplacement des unites
@@ -102,6 +101,10 @@ class Game:
 
         self.map = numpy.zeros( (Game.WIDTH, Game.HEIGHT), dtype=numpy.bool )
 
+        # On pose la carte des valeurs de Pastille, en partant du principe qu'il y en a une par case libre.
+        # on stockera zéro si pas de pastille
+        self.internalPastilleMap = numpy.zeros( (Game.WIDTH, Game.HEIGHT), dtype=numpy.int8 )
+
         for i in range(Game.HEIGHT):
             row = input()  # one line of the grid: space " " is floor, pound "#" is wall
             j = 0
@@ -110,6 +113,7 @@ class Game:
                     self.map[j][i] = self.WALL
                 else:
                     self.map[j][i] = self.FLOOR
+                    self.internalPastilleMap[j][i] = 1
                 j += 1
 
         # Calculate distanceMap complete
@@ -123,9 +127,6 @@ class Game:
     # Return true if timeout near and we should stop what we are doing
     @staticmethod
     def check_timeout()-> bool:
-        #debug
-        return False
-
         if Game.tour <= 1:
             timeout = 0.995
         else:
@@ -166,6 +167,8 @@ class Game:
 
     def update(self):
         Game.tour += 1
+        # reset timings
+        debugTiming.clear()
         self.score, self.opponentScore = [int(j) for j in input().split()]
 
         # else already started
@@ -184,6 +187,9 @@ class Game:
             speedTurnsLeft = 0
             abilityCooldown = 0
             found = False
+
+            # plus de pastille sur soi-même ou un ennemi
+            self.internalPastilleMap[x][y] = 0
 
             if (int(owner) == self.ME):
                 for unit in self.units:
@@ -209,6 +215,9 @@ class Game:
         for j in range(visiblePelletCount):
             x, y, value = map(int, input().split())
             self.pastilles.append(Pastille(value, x, y))
+            # update pastille
+            self.internalPastilleMap[x][y] = value
+
             x_array[j] = x
             y_array[j] = y
             value_array[j] = value
@@ -217,12 +226,11 @@ class Game:
         for unit in self.units:
             if unit.lastRoundSeen != Game.tour:
                 self.units.remove(unit)
+                continue
+                
+            # TODO: mettre à jour self.internalPastilleMap en effacant les cases actuellement visibles et sans pastille
+            # code à faire ici (faut incrementer / decrementer X/Y sur soi jusqu'à voir un mur)
 
-        # Calcul barycentre : pondéré par le poids des pastilles
-        self.barycentre = {
-            "x": numpy.average(x_array, weights=value_array),
-            "y": numpy.average(y_array, weights=value_array)
-        }
 
         # MAJ du temps:
         debugTiming['update'] = time.time() - Game.startTime 

@@ -112,7 +112,8 @@ def test_build_distancemap():
 
     nbCases = 242
     # on veut avoir tout calculé en 1s
-    #assert nbCases == nbMapCalc
+    assert nbMapCalc/nbCases > 0.8 # 80%
+    assert nbMapCalc/nbCases <= 1 # max 100%
 
     drawMap(Pathfinding.distanceMap[2][5], 'pathfinding_2_5', "distance", "Distance depuis (2,5)")
     drawMap(Pathfinding.buildDistanceMap(newMap, Point(2, 5), [False]), 'pathfinding_2_5bis', "distance", "Distance depuis (2,5)")
@@ -128,8 +129,8 @@ def test_build_distancemap():
 
     # distances
     assert Pathfinding.distance(Point(2, 5), Point(5, 5)) == 3
-    assert Pathfinding.distance(Point(21, 5), Point(13, 14)) == 17
-    assert Pathfinding.distance(Point(21, 5), Point(31, 13)) == 18
+    assert Pathfinding.distance(Point(21, 5), Point(13, 11)) == 14
+    assert Pathfinding.distance(Point(21, 5), Point(31, 10)) == 15
 
 def prepareMap(strMap) -> numpy.array:
     finalmap = numpy.zeros( (Game.WIDTH, Game.HEIGHT), dtype=numpy.bool )
@@ -150,6 +151,8 @@ def prepareMap(strMap) -> numpy.array:
 ## Draw
 DRAWZOOM=20
 def drawMap(macarte, name, type="map", texte=None): 
+
+    assert macarte.ndim == 2
 
     # no draw on Travis-CI
     if 'TRAVIS' in os.environ:
@@ -183,7 +186,7 @@ def drawMap(macarte, name, type="map", texte=None):
 
                 d.rectangle([x*DRAWZOOM, y*DRAWZOOM, x*DRAWZOOM+DRAWZOOM, y*DRAWZOOM+DRAWZOOM], fill=fillColor)
             elif type == "distance":
-                if x not in macarte or y not in macarte[x] or macarte[x][y] is None:
+                if macarte[x][y] is None:
                     fillColor=(50,50,50)
                 elif numpy.isnan(macarte[x][y]):
                     fillColor=(255,255,255)
@@ -198,7 +201,7 @@ def drawMap(macarte, name, type="map", texte=None):
                     fillColor=(0,0,0)
                 
                 d.rectangle([x*DRAWZOOM, y*DRAWZOOM, x*DRAWZOOM+DRAWZOOM, y*DRAWZOOM+DRAWZOOM], fill=fillColor)
-                if x in macarte and y in macarte[x] and macarte[x][y] >= 0:
+                if macarte[x][y] >= 0:
                     d.text((DRAWZOOM+x*DRAWZOOM-DRAWZOOM/2-3, DRAWZOOM+y*DRAWZOOM-DRAWZOOM/2-5), str(int(macarte[x][y])), font=fnt, fill=(80,0,100))
             else:
                 d.text((DRAWZOOM+x*DRAWZOOM-DRAWZOOM/2-3, DRAWZOOM+y*DRAWZOOM-DRAWZOOM/2-5), str(macarte[x][y]), font=fnt, fill=(0,0,100))

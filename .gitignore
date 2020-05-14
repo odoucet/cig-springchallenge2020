@@ -4,3 +4,6 @@
 /.vscode
 /.idea
 
+/codetests.py
+/tests/*.png
+__pycache__

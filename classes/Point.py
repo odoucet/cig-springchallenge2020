@@ -25,7 +25,7 @@ class Point:
         return Point(self.x+other.x, self.y+other.y)
 
     # Retourne les cases adjacentes, avec un filtre 
-    def getAdjacentes(self, map: numpy.array, filtre = None) -> List:
+    def getAdjacentes(self, map: numpy.array, filtre = None, filtreExcluded = None) -> List:
         cases = []
 
         #                 droite              bas                 haut                 gauche               
@@ -41,10 +41,9 @@ class Point:
                 x = x - Game.WIDTH
 
             if x >= 0 and x < Game.WIDTH and y >= 0 and y < Game.HEIGHT:
-                if filtre is None or map[x][y] in filtre:
+                if (filtre is None or map[x][y] in filtre) and (filtreExcluded is None or  map[x][y] not in filtreExcluded):
                     cases.append(Point(x, y))
         return cases
-         
 
     # Retourne le point dans srcArray le plus proche de point
     # srcArray: Point[]
