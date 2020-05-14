@@ -25,7 +25,7 @@ class Pathfinding:
                 return abs(a.x - b.x) + abs(a.y - b.y)
             elif numpy.isnan(Pathfinding.distanceMap[b.x][b.y][a.x][a.y]):
                 # trop loin
-                return 30
+                return abs(a.x - b.x) + abs(a.y - b.y)+10
             else:
                 return Pathfinding.distanceMap[b.x][b.y][a.x][a.y]
         else:
